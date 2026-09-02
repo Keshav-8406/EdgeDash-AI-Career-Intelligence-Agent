@@ -1,0 +1,46 @@
+# EdgeDash — user configuration
+# Edit this file to match your profile. Nothing here is committed with secrets.
+# See edgedash/config.py for the full list of supported fields and defaults.
+
+# The role title you are targeting (used in job searches and scoring).
+target_role: "Security Engineer"
+
+# City used to filter listings geographically.
+target_city: "Berlin"
+
+# Additional keywords injected into every search query.
+keywords:
+  - "Security"
+  - "SQL"
+  - "Python"
+  - "Power BI"
+  - "Tableau"
+  - "data pipeline"
+
+# Your current skill set — the Scorer and GapAnalyzer compare listings against this.
+my_skills:
+  - "Security"
+  - "Python"
+  - "SQL"
+  - "Excel"
+  - "Pandas"
+  - "Matplotlib"
+  - "Statistics"
+
+# Years of relevant experience (used to weight fit scoring).
+experience_years: 2
+
+# Path to the SQLite database file (relative to repo root, or absolute).
+# Will be replaced by a DATABASE_URL env var when we migrate to Postgres in week 4.
+db_path: "edgedash.db"
+
+# Which job sources to query (must match keys in the SOURCES registry).
+sources:
+  - arbeitnow
+
+# Set to true to use MockFetcher instead of the real Fetcher (offline dev).
+use_mock_fetcher: false
+
+
+# Listings with a fit score below this threshold are hidden from the dashboard.
+min_fit_score: 60
