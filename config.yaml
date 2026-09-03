@@ -2,8 +2,15 @@
 # Edit this file to match your profile. Nothing here is committed with secrets.
 # See edgedash/config.py for the full list of supported fields and defaults.
 
+# ---------------------------------------------------------------------------
+# Career Profile
+# ---------------------------------------------------------------------------
+
 # The role title you are targeting (used in job searches and scoring).
 target_role: "Security Engineer"
+
+# Target seniority band.
+target_seniority: "mid"
 
 # City used to filter listings geographically.
 target_city: "Berlin"
@@ -27,20 +34,51 @@ my_skills:
   - "Matplotlib"
   - "Statistics"
 
-# Years of relevant experience (used to weight fit scoring).
+# Years of relevant experience.
 experience_years: 2
 
-# Path to the SQLite database file (relative to repo root, or absolute).
-# Will be replaced by a DATABASE_URL env var when we migrate to Postgres in week 4.
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+
+# Path to the SQLite database file.
 db_path: "edgedash.db"
 
-# Which job sources to query (must match keys in the SOURCES registry).
+
+# ---------------------------------------------------------------------------
+# Job Sources
+# ---------------------------------------------------------------------------
+
+# Which job sources to query.
 sources:
   - arbeitnow
 
-# Set to true to use MockFetcher instead of the real Fetcher (offline dev).
+# Set to true to use MockFetcher instead of the real Fetcher.
 use_mock_fetcher: false
 
 
+# ---------------------------------------------------------------------------
+# Scoring
+# ---------------------------------------------------------------------------
+
 # Listings with a fit score below this threshold are hidden from the dashboard.
 min_fit_score: 60
+
+# Maximum number of listings scored in one scoring run.
+# Class 3 assignment requirement: configurable batch cap, default 25.
+score_batch_size: 25
+
+
+# ---------------------------------------------------------------------------
+# LLM Configuration
+# ---------------------------------------------------------------------------
+
+# LLM provider used by EdgeDash.
+llm_provider: "ollama"
+
+# Ollama model used for LLM-powered job-description extraction.
+llm_model: "gemma3:1b"
+
+# Maximum number of listings processed in one LLM batch.
+llm_batch_size: 10

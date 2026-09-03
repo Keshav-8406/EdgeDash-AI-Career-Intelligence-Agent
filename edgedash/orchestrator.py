@@ -15,6 +15,7 @@ import edgedash.storage as storage
 from edgedash.agents.base import Agent, AgentResult
 from edgedash.agents.fetcher import Fetcher
 from edgedash.agents.mock_fetcher import MockFetcher
+from edgedash.agents.scorer import Scorer
 from edgedash.config import Config
 
 
@@ -49,10 +50,10 @@ def _make_placeholder(agent_name: str) -> Agent:
 def _build_registry(config: Config) -> list[Agent]:
     fetcher: Agent = MockFetcher() if config.use_mock_fetcher else Fetcher()
     return [
-        fetcher,
-        _make_placeholder("Scorer"),
-        _make_placeholder("GapAnalyzer"),
-    ]
+    fetcher,
+    Scorer(),
+    _make_placeholder("GapAnalyzer"),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -81,17 +82,21 @@ def _print_state(last_fetch: datetime | None, unscored: int) -> None:
 
 
 def _print_plan(agents: list[Agent]) -> None:
-    print("\n🗺️   PLAN")
+    print("\n🗺️  PLAN")
     print(_THIN)
+
     for agent in agents:
-        is_placeholder = "NOT IMPLEMENTED" in agent.__class__.__name__ or isinstance(
-            agent, type(None)
-        )
-        tag = "  ⏭  SKIP (placeholder)" if "Placeholder" in type(agent).__name__ else "  ▶  RUN"
+        if "Placeholder" in type(agent).__name__:
+            tag = "  ⏭  SKIP (placeholder)"
+        else:
+            tag = "  ▶  RUN"
+
         print(f"{tag}  {agent.name}")
+
     print()
     print("  Fetcher runs every cycle to pick up new listings.")
-    print("  Scorer and GapAnalyzer are registered but not yet implemented.")
+    print("  Scorer processes unscored listings in configurable batches.")
+    print("  GapAnalyzer remains a placeholder for a later class.")
 
 
 def _print_agent_result(result: AgentResult, elapsed_ms: int) -> None:

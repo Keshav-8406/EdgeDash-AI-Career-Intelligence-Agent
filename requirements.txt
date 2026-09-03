@@ -1,2 +1,5 @@
 pyyaml
 requests
+python-dotenv
+google-genai
+pytest
