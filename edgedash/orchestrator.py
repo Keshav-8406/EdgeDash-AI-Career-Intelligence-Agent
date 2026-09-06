@@ -14,6 +14,7 @@ from typing import Type
 import edgedash.storage as storage
 from edgedash.agents.base import Agent, AgentResult
 from edgedash.agents.fetcher import Fetcher
+from edgedash.agents.gap_analyzer import GapAnalyzer
 from edgedash.agents.mock_fetcher import MockFetcher
 from edgedash.agents.scorer import Scorer
 from edgedash.config import Config
@@ -50,10 +51,10 @@ def _make_placeholder(agent_name: str) -> Agent:
 def _build_registry(config: Config) -> list[Agent]:
     fetcher: Agent = MockFetcher() if config.use_mock_fetcher else Fetcher()
     return [
-    fetcher,
-    Scorer(),
-    _make_placeholder("GapAnalyzer"),
-]
+        fetcher,
+        Scorer(),
+        GapAnalyzer(),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +97,7 @@ def _print_plan(agents: list[Agent]) -> None:
     print()
     print("  Fetcher runs every cycle to pick up new listings.")
     print("  Scorer processes unscored listings in configurable batches.")
-    print("  GapAnalyzer remains a placeholder for a later class.")
+    print("  GapAnalyzer computes skill gaps from scored listings.")
 
 
 def _print_agent_result(result: AgentResult, elapsed_ms: int) -> None:

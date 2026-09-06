@@ -82,6 +82,20 @@ CREATE TABLE IF NOT EXISTS extraction_cache (
     facts_json       TEXT NOT NULL,
     created_at       TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS skill_gaps_v2 (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id            TEXT    NOT NULL,
+    computed_at       TEXT    NOT NULL,
+    skill             TEXT    NOT NULL,
+    listings_blocked  INTEGER NOT NULL,
+    opportunity_cost  REAL    NOT NULL,
+    mean_score        REAL    NOT NULL,
+    top_score         INTEGER NOT NULL,
+    example_ids       TEXT    NOT NULL,  -- JSON array, up to 5 listing IDs
+    also_nice_to_have INTEGER NOT NULL DEFAULT 0,
+    low_confidence    INTEGER NOT NULL DEFAULT 0   -- 1 when listings_blocked < 3
+);
 """
 
 
@@ -120,6 +134,22 @@ def init_db(path: str) -> None:
             "listings",
             "scored_at",
             "TEXT",
+        )
+
+        # skill_gaps_v2 is created by _DDL above; ensure extra columns
+        # exist for databases created before this migration.
+        _ensure_column(
+            conn,
+            "skill_gaps_v2",
+            "also_nice_to_have",
+            "INTEGER NOT NULL DEFAULT 0",
+        )
+
+        _ensure_column(
+            conn,
+            "skill_gaps_v2",
+            "low_confidence",
+            "INTEGER NOT NULL DEFAULT 0",
         )
 
 
@@ -418,6 +448,226 @@ def log_cycle(
                 notes,
             ),
         )
+
+
+# ---------------------------------------------------------------------------
+# Gap snapshots  (skill_gaps_v2)
+# ---------------------------------------------------------------------------
+
+def save_gap_snapshot(
+    path: str,
+    run_id: str,
+    computed_at: str,
+    gaps: list[dict[str, Any]],
+) -> int:
+    """
+    Write one timestamped snapshot of gap rows.  Never overwrites a
+    previous run — each run_id produces a distinct set of rows.
+
+    Each dict in `gaps` must have the keys:
+        skill, listings_blocked, opportunity_cost, mean_score,
+        top_score, example_ids (list[str]), also_nice_to_have,
+        low_confidence (bool)
+
+    Returns the number of rows inserted.
+    """
+    if not gaps:
+        return 0
+
+    with _connect(path) as conn:
+        conn.executemany(
+            """
+            INSERT INTO skill_gaps_v2
+            (
+                run_id, computed_at, skill, listings_blocked,
+                opportunity_cost, mean_score, top_score,
+                example_ids, also_nice_to_have, low_confidence
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    run_id,
+                    computed_at,
+                    g["skill"],
+                    int(g["listings_blocked"]),
+                    float(g["opportunity_cost"]),
+                    float(g["mean_score"]),
+                    int(g["top_score"]),
+                    json.dumps(g["example_ids"], ensure_ascii=False),
+                    int(g["also_nice_to_have"]),
+                    int(g["low_confidence"]),
+                )
+                for g in gaps
+            ],
+        )
+
+    return len(gaps)
+
+
+def get_latest_gap_snapshot(
+    path: str,
+) -> list[dict[str, Any]]:
+    """
+    Return all rows from the most recent gap snapshot, ordered by
+    opportunity_cost descending.
+
+    Returns an empty list if no snapshots exist yet.
+    """
+    with _connect(path) as conn:
+        # Find the run_id with the latest computed_at
+        row = conn.execute(
+            """
+            SELECT run_id
+            FROM skill_gaps_v2
+            ORDER BY computed_at DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+        if row is None:
+            return []
+
+        latest_run_id = row["run_id"]
+
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM skill_gaps_v2
+            WHERE run_id = ?
+            ORDER BY opportunity_cost DESC
+            """,
+            (latest_run_id,),
+        ).fetchall()
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["example_ids"] = json.loads(d["example_ids"])
+        result.append(d)
+
+    return result
+
+
+def get_earliest_gap_snapshot(
+    path: str,
+) -> list[dict[str, Any]]:
+    """
+    Return all rows from the oldest gap snapshot, ordered by
+    opportunity_cost descending.
+
+    Returns an empty list if no snapshots exist yet.
+    """
+    with _connect(path) as conn:
+        row = conn.execute(
+            """
+            SELECT run_id
+            FROM skill_gaps_v2
+            ORDER BY computed_at ASC
+            LIMIT 1
+            """
+        ).fetchone()
+
+        if row is None:
+            return []
+
+        earliest_run_id = row["run_id"]
+
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM skill_gaps_v2
+            WHERE run_id = ?
+            ORDER BY opportunity_cost DESC
+            """,
+            (earliest_run_id,),
+        ).fetchall()
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["example_ids"] = json.loads(d["example_ids"])
+        result.append(d)
+
+    return result
+
+
+def get_snapshot_run_ids(path: str) -> list[str]:
+    """
+    Return all distinct run_ids ordered by computed_at ascending.
+
+    Used to count snapshots and determine the time window for trend
+    reporting.  Read-only.
+    """
+    with _connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT run_id, MIN(computed_at) AS ts
+            FROM skill_gaps_v2
+            GROUP BY run_id
+            ORDER BY ts ASC
+            """
+        ).fetchall()
+
+    return [row["run_id"] for row in rows]
+
+
+# ---------------------------------------------------------------------------
+# Scored listings with cached facts
+# ---------------------------------------------------------------------------
+
+def get_scored_listings_with_facts(
+    path: str,
+) -> list[dict[str, Any]]:
+    """
+    Return every scored listing joined with its cached extraction facts.
+
+    Only listings with fit_score IS NOT NULL are included.
+    Listings that have no entry in extraction_cache are silently skipped
+    (they have no facts to analyse).
+
+    Each returned dict merges all listing columns with the parsed
+    facts_json keys (required_skills, nice_to_have, seniority, …).
+
+    The join is done in Python because SQLite does not expose sha256().
+    The same hashing logic as edgedash.agents.extractor.description_hash
+    is replicated here so the keys match.
+    """
+    import hashlib as _hashlib
+
+    with _connect(path) as conn:
+        listing_rows = conn.execute(
+            """
+            SELECT id, title, company, location, fit_score,
+                   fit_reason, posted_at, description
+            FROM listings
+            WHERE fit_score IS NOT NULL
+            """
+        ).fetchall()
+
+        cache_rows = conn.execute(
+            "SELECT description_hash, facts_json FROM extraction_cache"
+        ).fetchall()
+
+    cache: dict[str, dict[str, Any]] = {}
+    for cr in cache_rows:
+        try:
+            cache[cr["description_hash"]] = json.loads(cr["facts_json"])
+        except (ValueError, KeyError):
+            pass
+
+    result: list[dict[str, Any]] = []
+    for lr in listing_rows:
+        desc = (lr["description"] or "").strip()
+        h = _hashlib.sha256(desc.encode("utf-8")).hexdigest()
+        facts = cache.get(h)
+        if facts is None:
+            continue
+        merged = dict(lr)
+        merged.update(facts)
+        result.append(merged)
+
+    return result
 
 
 # ---------------------------------------------------------------------------

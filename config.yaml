@@ -82,3 +82,50 @@ llm_model: "gemma3:1b"
 
 # Maximum number of listings processed in one LLM batch.
 llm_batch_size: 10
+
+
+# ---------------------------------------------------------------------------
+# Skill Alias Map
+# ---------------------------------------------------------------------------
+# THIS MAP IS YOURS TO EDIT.
+# Adding entries is expected as you see your own data — run
+#   python -m edgedash.skills --audit
+# to discover collisions worth aliasing.
+#
+# Format:  "raw variant": "canonical form"
+# All keys and values are lowercased before lookup, so casing here
+# does not matter.  The canonical form is what appears in gap reports
+# and on the dashboard.
+#
+# Rule 23: skill names are canonicalised through this map only.
+# The model never merges skill names by judgement or string similarity.
+
+skill_aliases:
+  # Kubernetes
+  "k8s": "kubernetes"
+
+  # Node / JavaScript  — kept SEPARATE, they are different skills
+  "node":    "node.js"
+  "nodejs":  "node.js"
+  "node js": "node.js"
+
+  # Postgres
+  "postgresql": "postgres"
+  "psql":       "postgres"
+
+  # GCP
+  "google cloud":          "gcp"
+  "google cloud platform": "gcp"
+
+  # Machine Learning
+  "ml": "machine learning"
+
+  # CI/CD
+  "ci cd":  "ci/cd"
+  "cicd":   "ci/cd"
+  "ci-cd":  "ci/cd"
+
+  # User additions from skill audit
+  "data pipelines":    "data pipeline"
+  "ci/cd pipelines":   "ci/cd"
+  "strong sql skills": "sql"
