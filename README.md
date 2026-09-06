@@ -65,6 +65,37 @@ The Dashboard only reads — it never writes.
 
 ---
 
+## Current Skill Gap
+
+> Based on the latest snapshot (1 run to date). Trend data is not yet available —
+> at least one additional run on a different day is needed before movement can be reported.
+
+The gap analyzer ranked **cloud computing** as the #1 priority gap in the
+current snapshot:
+
+| Metric | Value |
+|---|---|
+| Listings blocked | 7 |
+| Opportunity cost | 3.87 |
+| Mean fit score of those listings | 55.3 |
+
+**Opportunity cost** is `Σ(fit_score / 100)` across the 7 listings that require
+this skill. A listing scored 55 contributes 0.55; a listing scored 20
+contributes 0.20. Cloud computing ranks first because it blocks more high-fit
+listings than any other missing skill — not merely because it appears most
+often.
+
+**Recommendation:** Complete one structured cloud fundamentals course (AWS Cloud
+Practitioner, Google Cloud Digital Leader, or equivalent) and add at least one
+hands-on project — deploying a scheduled workload or a storage pipeline — to a
+public portfolio. This directly addresses the skill that is blocking the most
+opportunity in the current target-role market.
+
+This recommendation reflects the latest snapshot only and may change as
+EdgeDash collects further cycles and the ranked gap list evolves.
+
+---
+
 ## Setup
 
 **Python 3.11 or later is required.**
