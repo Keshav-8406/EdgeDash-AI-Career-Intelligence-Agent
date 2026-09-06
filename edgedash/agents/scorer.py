@@ -19,12 +19,22 @@ class Scorer:
 
     name = "Scorer"
 
-    def run(self, config, db_path: str) -> AgentResult:
+    def run(
+        self,
+        config,
+        db_path: str,
+        stop_conditions: dict | None = None,
+    ) -> AgentResult:
+        sc = stop_conditions or {}
+        # max_items from Orchestrator; fall back to config batch size.
+        max_items: int    = sc.get("max_items",   config.score_batch_size)
+        max_seconds: float = sc.get("max_seconds", float("inf"))
+
         started_at = datetime.now(timezone.utc)
 
         listings = storage.get_unscored_listings(
             db_path,
-            limit=config.score_batch_size,
+            limit=max_items,
         )
 
         if not listings:
@@ -38,8 +48,15 @@ class Scorer:
         scores: list[int] = []
         failures: list[str] = []
         scored_count = 0
+        timed_out = False
 
         for listing in listings:
+            # Respect max_seconds stop-condition from the Orchestrator.
+            elapsed = (datetime.now(timezone.utc) - started_at).total_seconds()
+            if elapsed >= max_seconds:
+                timed_out = True
+                break
+
             listing_id = listing["id"]
 
             try:
@@ -108,6 +125,11 @@ class Scorer:
             # Keep cycle_log notes readable.
             notes_parts.extend(failures[:10])
 
+        if timed_out:
+            notes_parts.append(
+                f"Stopped early: max_seconds={max_seconds} reached."
+            )
+
         elapsed_ms = int(
             (
                 datetime.now(timezone.utc) - started_at
@@ -126,6 +148,6 @@ class Scorer:
         )
 
 
-def run(config, db_path: str) -> AgentResult:
+def run(config, db_path: str, stop_conditions: dict | None = None) -> AgentResult:
     """Convenience entry point."""
-    return Scorer().run(config, db_path)
+    return Scorer().run(config, db_path, stop_conditions)

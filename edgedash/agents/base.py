@@ -8,7 +8,7 @@ Orchestrator can treat them uniformly.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from edgedash.config import Config
 
@@ -35,5 +35,21 @@ class Agent(Protocol):
 
     name: str
 
-    def run(self, config: Config, db_path: str) -> AgentResult:
+    def run(
+        self,
+        config: Config,
+        db_path: str,
+        stop_conditions: dict[str, Any] | None = None,
+    ) -> AgentResult:
+        """
+        Execute the agent's goal.
+
+        Args:
+            config:          project configuration.
+            db_path:         path to the database.
+            stop_conditions: limits set by the Orchestrator, e.g.
+                             {"max_items": 25, "max_seconds": 300}.
+                             Agents must respect these limits.
+                             Defaults to {} when called without the argument.
+        """
         ...

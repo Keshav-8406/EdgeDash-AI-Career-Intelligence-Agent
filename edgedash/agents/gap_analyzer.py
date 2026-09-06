@@ -226,7 +226,16 @@ class GapAnalyzer:
 
     name = "GapAnalyzer"
 
-    def run(self, config: Config, db_path: str) -> AgentResult:
+    def run(
+        self,
+        config: Config,
+        db_path: str,
+        stop_conditions: dict | None = None,
+    ) -> AgentResult:
+        sc = stop_conditions or {}
+        max_seconds: float = sc.get("max_seconds", float("inf"))
+
+        started_at = datetime.now(timezone.utc)
         listings = storage.get_scored_listings_with_facts(db_path)
 
         if not listings:
@@ -255,6 +264,10 @@ class GapAnalyzer:
         )
 
         notes = _build_notes(gaps, len(listings), saved)
+
+        elapsed = (datetime.now(timezone.utc) - started_at).total_seconds()
+        if elapsed > max_seconds:
+            notes += f" [exceeded max_seconds={max_seconds}; took {elapsed:.1f}s]"
 
         return AgentResult(
             agent=self.name,

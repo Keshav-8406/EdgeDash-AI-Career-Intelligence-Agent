@@ -14,6 +14,16 @@ target_seniority: "mid"
 
 # City used to filter listings geographically.
 target_city: "Berlin"
+target_city: "Bangalore"
+target_city: "Pune"
+target_city: "Hyderabad"
+target_city: "Indore"
+target_city: "Mumbai"
+target_city: "Chennai"
+target_city: "Delhi NCR"
+target_city: "Gurugram"
+target_city: "Chandigarh"
+target_city: "Ahmedabad"
 
 # Additional keywords injected into every search query.
 keywords:
@@ -27,8 +37,14 @@ keywords:
 # Your current skill set — the Scorer and GapAnalyzer compare listings against this.
 my_skills:
   - "Security"
+  - "JavaScript"
+  - "Java"
   - "Python"
   - "SQL"
+  - "HTML"
+  - "C"
+  - "C++"
+  - "Perl"
   - "Excel"
   - "Pandas"
   - "Matplotlib"
@@ -53,6 +69,8 @@ db_path: "edgedash.db"
 # Which job sources to query.
 sources:
   - arbeitnow
+  #- Linkedin
+  #- Naukri Job Search
 
 # Set to true to use MockFetcher instead of the real Fetcher.
 use_mock_fetcher: false
@@ -129,3 +147,58 @@ skill_aliases:
   "data pipelines":    "data pipeline"
   "ci/cd pipelines":   "ci/cd"
   "strong sql skills": "sql"
+
+
+# ---------------------------------------------------------------------------
+# Orchestration / Planning Thresholds
+# ---------------------------------------------------------------------------
+# These values are the stop-conditions the Orchestrator passes to each
+# sub-agent (rule 29).  Sub-agents never set their own limits.
+
+# Re-fetch if this many hours have elapsed since the last successful fetch.
+fetch_interval_hours: 6
+
+# Fetcher stop-conditions.
+fetch_max_pages: 10
+fetch_max_listings: 200
+
+# Maximum wall-clock seconds the Scorer may run in one cycle.
+score_max_seconds: 300
+
+# Maximum wall-clock seconds the GapAnalyzer may run in one cycle.
+analyse_max_seconds: 120
+
+
+# ---------------------------------------------------------------------------
+# Verification Thresholds  (rule 39)
+# Every threshold has a comment naming the failure it is designed to catch.
+# ---------------------------------------------------------------------------
+
+# check_score_spread — catches score inflation / all-same-score output.
+# A run where every score is within a 10-point band is suspect (rule 20).
+min_score_spread: 10
+
+# check_score_spread — catches score clustering around a single value.
+# A standard deviation below 5 means the model is returning near-identical
+# scores regardless of listing content.
+min_score_stdev: 5.0
+
+# check_extraction_sanity — catches a broken extractor returning no skills.
+# If more than 20% of listings have an empty required_skills list, something
+# is wrong with the extraction prompt or model response parsing.
+max_empty_extraction_pct: 20.0
+
+# check_extraction_sanity — catches a model that returned a full sentence
+# as a single skill entry (e.g. "experience with cloud platforms required").
+# A real skill name never needs more than ~20 tokens.
+max_skills_per_listing: 20
+
+# check_gap_sample_size — catches ranking a gap based on a single listing.
+# A gap computed from fewer than 3 listings is low-confidence and must not
+# be promoted to the top rank.
+min_gap_sample: 3
+
+# check_freshness — catches stale data being presented as current.
+# If the newest listing is older than 3 days, the fetch cycle has likely
+# been broken or skipped for an extended period.
+max_data_age_days: 3

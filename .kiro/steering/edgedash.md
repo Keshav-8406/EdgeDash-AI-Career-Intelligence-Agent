@@ -204,3 +204,73 @@ Trigger (scheduled)
 - Always report the sample size next to every aggregate figure.
 - A gap computed from 3 listings and a gap computed from 90 listings must
   never be presented as equally reliable.
+
+
+---
+
+## Orchestration
+
+### 28 — State-Driven Execution, Not Fixed Sequence
+- The Orchestrator reads system state and decides which agents to run.
+- It never runs a fixed sequence.
+- Skipping an agent because there is no work for it is a **successful**
+  outcome, not a failure.
+
+### 29 — Explicit Goals and Stop Conditions
+- Every delegation carries an explicit goal and an explicit stop condition
+  (max items, max duration).
+- A sub-agent never decides its own limits — the Orchestrator sets them.
+
+### 30 — Orchestrator Does Not Do Agent Work
+- The Orchestrator reads state, delegates, collects results, and logs.
+- No fetching, scoring, or analysis logic belongs in the Orchestrator.
+
+### 31 — Plan Before Executing
+- The Orchestrator prints and logs its **PLAN** before executing it:
+  which agents will run, which are skipped, and the state value that
+  caused each decision.
+
+### 32 — One Agent Failing Does Not Stop the Cycle
+- Log the failure, continue with the remaining plan, and mark the cycle
+  **partial**.
+
+### 33 — One Summary Row Per Cycle
+- Every cycle writes exactly one summary row: what ran, what was skipped,
+  why, duration per agent, and the outcome.
+
+---
+
+## Verification
+
+### 34 — Verifier Judges, Never Repairs
+- The Verifier judges output plausibility and **never** repairs, rewrites,
+  or adjusts data.
+- It returns a verdict and a reason.
+- The Orchestrator decides what to do about a failure.
+
+### 35 — Plausibility, Not Correctness
+- Verification checks plausibility, never correctness.
+- There is no ground truth for a fit score.
+- Checks assert properties of the output distribution and shape, not
+  the accuracy of any single value.
+
+### 36 — At Most One Retry
+- A failed verification triggers at most **one** retry of the failing agent
+  with adjusted context.
+- After that the cycle is marked "degraded" and stops.
+- Never retry in an unbounded loop.
+
+### 37 — Log the Failing Check and Observed Value
+- Every verdict is logged to `cycle_log` with the check that failed and
+  the observed value that failed it.
+- Never log just "failed" — the reason must be specific.
+
+### 38 — Stale Verified Data Beats Fresh Unverified Data
+- Only cycles with a passing verdict may be read by the dashboard.
+- A failed cycle must never overwrite the last known-good data.
+- Stale verified data always beats fresh unverified data.
+
+### 39 — Thresholds in config.yaml, Not in Code
+- Verification thresholds live in `config.yaml`, not in code.
+- Every threshold must have a comment explaining what failure it is
+  designed to catch.

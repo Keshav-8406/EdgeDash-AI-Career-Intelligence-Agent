@@ -40,6 +40,21 @@ class Config:
     # Scoring configuration
     score_batch_size: int
 
+    # Orchestration / planning thresholds
+    fetch_interval_hours: int    # re-fetch if hours since last fetch >= this
+    fetch_max_pages: int         # stop-condition passed to Fetcher
+    fetch_max_listings: int      # stop-condition passed to Fetcher
+    score_max_seconds: int       # stop-condition passed to Scorer
+    analyse_max_seconds: int     # stop-condition passed to GapAnalyzer
+
+    # Verification thresholds (rule 39)
+    min_score_spread: int        # check_score_spread: catches score inflation
+    min_score_stdev: float       # check_score_spread: catches score clustering
+    max_empty_extraction_pct: float  # check_extraction_sanity: catches broken extractor
+    max_skills_per_listing: int  # check_extraction_sanity: catches sentence-as-skill
+    min_gap_sample: int          # check_gap_sample_size: catches ranking a rumour
+    max_data_age_days: int       # check_freshness: catches stale data
+
 
 # ---------------------------------------------------------------------------
 # Defaults
@@ -64,6 +79,21 @@ _DEFAULTS: dict[str, Any] = {
 
     # Scoring defaults
     "score_batch_size": 25,
+
+    # Orchestration / planning defaults
+    "fetch_interval_hours": 6,
+    "fetch_max_pages":      10,
+    "fetch_max_listings":   200,
+    "score_max_seconds":    300,
+    "analyse_max_seconds":  120,
+
+    # Verification defaults (rule 39)
+    "min_score_spread":          10,
+    "min_score_stdev":            5.0,
+    "max_empty_extraction_pct":  20.0,
+    "max_skills_per_listing":    20,
+    "min_gap_sample":             3,
+    "max_data_age_days":          3,
 }
 
 
@@ -138,4 +168,19 @@ def load_config(config_path: str | Path | None = None) -> Config:
 
         # Scoring configuration
         score_batch_size=int(merged["score_batch_size"]),
+
+        # Orchestration / planning thresholds
+        fetch_interval_hours=int(merged["fetch_interval_hours"]),
+        fetch_max_pages=int(merged["fetch_max_pages"]),
+        fetch_max_listings=int(merged["fetch_max_listings"]),
+        score_max_seconds=int(merged["score_max_seconds"]),
+        analyse_max_seconds=int(merged["analyse_max_seconds"]),
+
+        # Verification thresholds
+        min_score_spread=int(merged["min_score_spread"]),
+        min_score_stdev=float(merged["min_score_stdev"]),
+        max_empty_extraction_pct=float(merged["max_empty_extraction_pct"]),
+        max_skills_per_listing=int(merged["max_skills_per_listing"]),
+        min_gap_sample=int(merged["min_gap_sample"]),
+        max_data_age_days=int(merged["max_data_age_days"]),
     )

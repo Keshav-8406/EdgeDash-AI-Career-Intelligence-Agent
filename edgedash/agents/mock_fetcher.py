@@ -202,15 +202,26 @@ def _build_varying_listings() -> list[dict]:
 class MockFetcher:
     name: str = "MockFetcher"
 
-    def run(self, config: Config, db_path: str) -> AgentResult:
+    def run(
+        self,
+        config: Config,
+        db_path: str,
+        stop_conditions: dict | None = None,
+    ) -> AgentResult:
+        sc = stop_conditions or {}
+        max_listings: int = sc.get("max_listings", 10_000)
+
         try:
             listings = _STABLE + _build_varying_listings()
+            # Respect max_listings stop-condition from the Orchestrator.
+            listings = listings[:max_listings]
             new_count = storage.upsert_listings(db_path, listings)
+            cap_note = f" (capped at {max_listings})" if max_listings < 12 else ""
             return AgentResult(
                 agent=self.name,
                 status="ok",
                 records_touched=new_count,
-                notes=f"{len(listings)} listings offered, {new_count} new.",
+                notes=f"{len(listings)} listings offered{cap_note}, {new_count} new.",
             )
         except Exception as exc:
             raise RuntimeError(f"MockFetcher failed: {exc}") from exc

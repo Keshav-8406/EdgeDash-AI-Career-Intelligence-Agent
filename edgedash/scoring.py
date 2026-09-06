@@ -22,10 +22,10 @@ from typing import Any
 # Weights
 # ---------------------------------------------------------------------------
 
-SKILL_WEIGHT = 0.45
+SKILL_WEIGHT     = 0.45
 SENIORITY_WEIGHT = 0.25
-LOCATION_WEIGHT = 0.15
-RECENCY_WEIGHT = 0.15
+LOCATION_WEIGHT  = 0.15
+RECENCY_WEIGHT   = 0.15
 
 
 # ---------------------------------------------------------------------------

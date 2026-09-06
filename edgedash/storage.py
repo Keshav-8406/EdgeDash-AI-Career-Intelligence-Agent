@@ -671,6 +671,115 @@ def get_scored_listings_with_facts(
 
 
 # ---------------------------------------------------------------------------
+# State inspection  (cheap scalar queries — counts and MAX timestamps only)
+# ---------------------------------------------------------------------------
+
+def latest_score_time(path: str) -> datetime | None:
+    """
+    Return the most recent scored_at timestamp across all listings.
+
+    Used by read_state() to detect whether any scoring has happened
+    since the last gap snapshot (gaps_stale check).
+
+    Single MAX() query — no table scan.
+    """
+    with _connect(path) as conn:
+        row = conn.execute(
+            "SELECT MAX(scored_at) FROM listings"
+        ).fetchone()
+
+    raw: str | None = row[0]
+    if raw is None:
+        return None
+    return datetime.fromisoformat(raw)
+
+
+def last_cycle(path: str) -> dict[str, Any] | None:
+    """
+    Return the most recent cycle_log row as a plain dict, or None.
+
+    Columns returned: agent, started_at, finished_at, status, notes.
+    Single ORDER BY + LIMIT 1 query — no table scan.
+    """
+    with _connect(path) as conn:
+        row = conn.execute(
+            """
+            SELECT agent, started_at, finished_at, status, notes
+            FROM cycle_log
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+    if row is None:
+        return None
+    return dict(row)
+
+
+# ---------------------------------------------------------------------------
+# Verified cycle  (rule 38)
+# ---------------------------------------------------------------------------
+
+def get_recent_cycle_log(
+    path: str,
+    limit: int = 30,
+) -> list[dict[str, Any]]:
+    """
+    Return the most recent `limit` Orchestrator summary rows from
+    cycle_log, ordered newest-first.
+
+    Only rows where agent = 'Orchestrator' are returned — per-agent
+    rows written inside a cycle are excluded.  The activity log shows
+    ALL cycles including failed and degraded ones (rule 38 exception).
+
+    Read-only.
+    """
+    with _connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM cycle_log
+            WHERE agent = 'Orchestrator'
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    return [dict(r) for r in rows]
+
+
+def get_last_verified_cycle(path: str) -> dict[str, Any] | None:
+    """
+    Return the most recent Orchestrator cycle_log row whose notes contain
+    'verdict=pass', or None if no passing cycle exists yet.
+
+    The dashboard reads ONLY from this function (rule 38).  A failed or
+    degraded cycle never overwrites last known-good data.
+
+    Looks only at rows where agent = 'Orchestrator' so per-agent rows
+    written inside a cycle are excluded.
+
+    Read-only — no writes.
+    """
+    with _connect(path) as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM cycle_log
+            WHERE agent = 'Orchestrator'
+              AND notes LIKE '%verdict=pass%'
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+    if row is None:
+        return None
+    return dict(row)
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 

@@ -30,7 +30,14 @@ import edgedash.sources.arbeitnow  # noqa: F401
 class Fetcher:
     name: str = "Fetcher"
 
-    def run(self, config: Config, db_path: str) -> AgentResult:
+    def run(
+        self,
+        config: Config,
+        db_path: str,
+        stop_conditions: dict | None = None,
+    ) -> AgentResult:
+        sc = stop_conditions or {}
+        max_listings: int = sc.get("max_listings", 10_000)  # generous default
         parts: list[str] = []   # per-source summary fragments for notes
         total_new = 0
 
@@ -53,8 +60,12 @@ class Fetcher:
             # loop continues to the next source either way.
             try:
                 rows = source.fetch(config)
-                # storage.upsert_listings calls storage.make_listing_id
-                # internally — there is exactly ONE id implementation.
+                # Respect max_listings stop-condition from the Orchestrator.
+                if len(rows) > max_listings:
+                    rows = rows[:max_listings]
+                    parts_prefix = f"[capped at {max_listings}] "
+                else:
+                    parts_prefix = ""
                 new_count = storage.upsert_listings(db_path, rows)
             except Exception as exc:
                 msg = f"{type(exc).__name__}: {exc}"
@@ -64,7 +75,7 @@ class Fetcher:
                 continue
 
             total_new += new_count
-            parts.append(f"{source_name}: {len(rows)} rows ({new_count} new)")
+            parts.append(f"{parts_prefix}{source_name}: {len(rows)} rows ({new_count} new)")
             _log_source(db_path, source_name, new_count, "ok", "", started)
 
         notes = " | ".join(parts) if parts else "no sources configured"
